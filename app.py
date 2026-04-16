@@ -61,4 +61,5 @@ with col1:
             color_continuous_scale="Blues"
         )
 
-        fig_map.update_geos(fitbounds="locations", visible=Fa
+        fig_map.update_geos(fitbounds="locations", visible=False)
+
