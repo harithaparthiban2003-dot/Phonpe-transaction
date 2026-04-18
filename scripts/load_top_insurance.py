@@ -1,69 +1,46 @@
-import json
+# 5. Top Insurance
+
+python
 import pandas as pd
-import mysql.connector
+import json
 import os
 
-# 🔹 DB Connection
-conn = mysql.connector.connect(
-    host="127.0.0.1",
-    user="root",
-    password="H@rikrish03",
-    database="phonepe_db"
-)
+path = "pulse/data/top/insurance/country/india/state/"
+Top_state_list = os.listdir(path)
 
-cursor = conn.cursor()
+clm = {
+    'State': [],
+    'Year': [],
+    'Quarter': [],
+    'Pincode': [],
+    'Insurance_count': [],
+    'Insurance_amount': []
+}
 
-# 🔹 Dataset Path
-path = "C:/Users/ELCOT/Desktop/PhonePe_Project/data/pulse-master/data/top/insurance/country/india/state/"
+for i in Top_state_list:
+    p_i = path + i + "/"
+    Top_yr = os.listdir(p_i)
 
-data = []
+    for j in Top_yr:
+        p_j = p_i + j + "/"
+        Top_yr_list = os.listdir(p_j)
 
-# 🔹 Loop through folders
-for state in os.listdir(path):
-    state_path = path + state + "/"
+        for k in Top_yr_list:
+            p_k = p_j + k
+            Data = open(p_k, 'r')
+            D = json.load(Data)
 
-    for year in os.listdir(state_path):
-        year_path = state_path + year + "/"
+            for z in D['data']['pincodes']:
+                name = z['entityName']
+                count = z['metric']['count']
+                amount = z['metric']['amount']
 
-        for file in os.listdir(year_path):
-            if file.endswith(".json"):
+                clm['Pincode'].append(name)
+                clm['Insurance_count'].append(count)
+                clm['Insurance_amount'].append(amount)
+                clm['State'].append(i)
+                clm['Year'].append(j)
+                clm['Quarter'].append(int(k.strip('.json')))
 
-                with open(year_path + file, "r") as f:
-                    content = json.load(f)
-
-                    if content.get("data") and content["data"].get("districts"):
-
-                        for item in content["data"]["districts"]:
-                            name = item.get("entityName", "")
-                            count = item.get("metric", {}).get("count", 0)
-                            amount = item.get("metric", {}).get("amount", 0)
-
-                            data.append([
-                                state,
-                                int(year),
-                                int(file.replace(".json", "")),
-                                name,
-                                count,
-                                amount
-                            ])
-
-# 🔹 Convert to DataFrame
-df = pd.DataFrame(data, columns=[
-    "state", "year", "quarter",
-    "entity_name", "count", "amount"
-])
-
-# 🔹 Insert into MySQL
-for _, row in df.iterrows():
-    cursor.execute("""
-        INSERT INTO top_insurance
-        (state, year, quarter, entity_name, count, amount)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, tuple(row))
-
-conn.commit()
-
-cursor.close()
-conn.close()
-
-print("✅ Top insurance data loaded successfully!")
+Top_Insurance = pd.DataFrame(clm)
+print(Top_Insurance.head())

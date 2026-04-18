@@ -1,72 +1,52 @@
-import json
+# 2. Aggregated User
+
+python
 import pandas as pd
-import mysql.connector
+import json
 import os
 
-# 🔹 DB Connection
-conn = mysql.connector.connect(
-    host="127.0.0.1",
-    user="root",
-    password="H@rikrish03",
-    database="phonepe_db"
-)
+path = "pulse/data/aggregated/user/country/india/state/"
+Agg_state_list = os.listdir(path)
 
-cursor = conn.cursor()
+clm = {
+    'State': [],
+    'Year': [],
+    'Quarter': [],
+    'Brand': [],
+    'Count': [],
+    'Percentage': []
+}
 
-# 🔹 Dataset Path (CHECK THIS)
-path = "C:/Users/ELCOT/Desktop/PhonePe_Project/data/pulse-master/data/aggregated/user/country/india/state/"
+for i in Agg_state_list:
+    p_i = path + i + "/"
+    Agg_yr = os.listdir(p_i)
 
-data = []
+    for j in Agg_yr:
+        p_j = p_i + j + "/"
+        Agg_yr_list = os.listdir(p_j)
 
-# 🔹 Loop through folders
-for state in os.listdir(path):
-    state_path = path + state + "/"
+        for k in Agg_yr_list:
+            p_k = p_j + k
+            Data = open(p_k, 'r')
+            D = json.load(Data)
 
-    for year in os.listdir(state_path):
-        year_path = state_path + year + "/"
+            try:
+                for z in D['data']['usersByDevice']:
+                    brand = z['brand']
+                    count = z['count']
+                    percentage = z['percentage']
 
-        for file in os.listdir(year_path):
-            if file.endswith(".json"):
+                    clm['Brand'].append(brand)
+                    clm['Count'].append(count)
+                    clm['Percentage'].append(percentage)
+                    clm['State'].append(i)
+                    clm['Year'].append(j)
+                    clm['Quarter'].append(int(k.strip('.json')))
+            except:
+                pass
 
-                file_path = year_path + file
+Agg_User = pd.DataFrame(clm)
+print(Agg_User.head())
 
-                with open(file_path, "r") as f:
-                    content = json.load(f)
 
-                    # 🔹 Safe check for data
-                    if content.get("data") and content["data"].get("usersByDevice"):
-
-                        for item in content["data"]["usersByDevice"]:
-                            brand = item.get("brand", "")
-                            count = item.get("count", 0)
-                            percentage = item.get("percentage", 0)
-
-                            data.append([
-                                state,
-                                int(year),
-                                int(file.replace(".json", "")),
-                                brand,
-                                count,
-                                percentage
-                            ])
-
-# 🔹 Convert to DataFrame
-df = pd.DataFrame(data, columns=[
-    "state", "year", "quarter",
-    "brand", "user_count", "percentage"
-])
-
-# 🔹 Insert into MySQL
-for _, row in df.iterrows():
-    cursor.execute("""
-        INSERT INTO aggregated_user
-        (state, year, quarter, brand, user_count, percentage)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, tuple(row))
-
-conn.commit()
-
-cursor.close()
-conn.close()
-
-print("✅ Aggregated user data loaded successfully!")
+---

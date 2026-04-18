@@ -1,68 +1,46 @@
-import json
+# 3. Aggregated Insurance
+
+python
 import pandas as pd
-import mysql.connector
+import json
 import os
 
-# 🔹 DB Connection
-conn = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="H@rikrish03",
-    database="phonepe_db"
-)
+path = "pulse/data/aggregated/insurance/country/india/state/"
+Agg_state_list = os.listdir(path)
 
-cursor = conn.cursor()
+clm = {
+    'State': [],
+    'Year': [],
+    'Quarter': [],
+    'Insurance_count': [],
+    'Insurance_amount': []
+}
 
-# 🔹 Dataset Path (CHECK THIS)
-path = "C:/Users/ELCOT/Desktop/PhonePe_Project/data/pulse-master/data/aggregated/insurance/country/india/state/"
+for i in Agg_state_list:
+    p_i = path + i + "/"
+    Agg_yr = os.listdir(p_i)
 
-data = []
+    for j in Agg_yr:
+        p_j = p_i + j + "/"
+        Agg_yr_list = os.listdir(p_j)
 
-# 🔹 Loop through folders
-for state in os.listdir(path):
-    state_path = path + state + "/"
-    
-    for year in os.listdir(state_path):
-        year_path = state_path + year + "/"
-        
-        for file in os.listdir(year_path):
-            if file.endswith(".json"):
-                with open(year_path + file, "r") as f:
-                    content = json.load(f)
-                    
-                    # 🔹 Check if data exists
-                    if "data" in content and content["data"] and "transactionData" in content["data"]:
-                        
-                        for i in content["data"]["transactionData"]:
-                            name = i["name"]
-                            count = i["paymentInstruments"][0]["count"]
-                            amount = i["paymentInstruments"][0]["amount"]
-                            
-                            data.append([
-                                state,
-                                int(year),
-                                int(file.replace(".json", "")),
-                                name,
-                                count,
-                                amount
-                            ])
+        for k in Agg_yr_list:
+            p_k = p_j + k
+            Data = open(p_k, 'r')
+            D = json.load(Data)
 
-# 🔹 Convert to DataFrame
-df = pd.DataFrame(data, columns=[
-    "state", "year", "quarter",
-    "insurance_type", "count", "amount"
-])
+            for z in D['data']['transactionData']:
+                count = z['paymentInstruments'][0]['count']
+                amount = z['paymentInstruments'][0]['amount']
 
-# 🔹 Insert into MySQL
-for i, row in df.iterrows():
-    cursor.execute("""
-        INSERT INTO aggregated_insurance
-        (state, year, quarter, insurance_type, count, amount)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, tuple(row))
+                clm['Insurance_count'].append(count)
+                clm['Insurance_amount'].append(amount)
+                clm['State'].append(i)
+                clm['Year'].append(j)
+                clm['Quarter'].append(int(k.strip('.json')))
 
-conn.commit()
-cursor.close()
-conn.close()
+Agg_Insurance = pd.DataFrame(clm)
+print(Agg_Insurance.head())
 
-print("✅ Aggregated insurance data loaded successfully!")
+
+---

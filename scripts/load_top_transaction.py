@@ -1,99 +1,49 @@
-import json
+# 3. Top Transaction
+
+python
 import pandas as pd
-import mysql.connector
+import json
 import os
 
-# 🔹 DB Connection
-conn = mysql.connector.connect(
-    host="127.0.0.1",
-    user="root",
-    password="H@rikrish03",
-    database="phonepe_db"
-)
+path = "pulse/data/top/transaction/country/india/state/"
+Top_state_list = os.listdir(path)
 
-cursor = conn.cursor()
+clm = {
+    'State': [],
+    'Year': [],
+    'Quarter': [],
+    'Pincode': [],
+    'Transaction_count': [],
+    'Transaction_amount': []
+}
 
-# 🔹 Dataset Path
-path = "C:/Users/ELCOT/Desktop/PhonePe_Project/data/pulse-master/data/top/transaction/country/india/state/"
+for i in Top_state_list:
+    p_i = path + i + "/"
+    Top_yr = os.listdir(p_i)
 
-data = []
+    for j in Top_yr:
+        p_j = p_i + j + "/"
+        Top_yr_list = os.listdir(p_j)
 
-# 🔹 Loop through folders
-for state in os.listdir(path):
-    state_path = path + state + "/"
+        for k in Top_yr_list:
+            p_k = p_j + k
+            Data = open(p_k, 'r')
+            D = json.load(Data)
 
-    for year in os.listdir(state_path):
-        year_path = state_path + year + "/"
+            for z in D['data']['pincodes']:
+                name = z['entityName']
+                count = z['metric']['count']
+                amount = z['metric']['amount']
 
-        for file in os.listdir(year_path):
-            if file.endswith(".json"):
+                clm['Pincode'].append(name)
+                clm['Transaction_count'].append(count)
+                clm['Transaction_amount'].append(amount)
+                clm['State'].append(i)
+                clm['Year'].append(j)
+                clm['Quarter'].append(int(k.strip('.json')))
 
-                file_path = year_path + file
+Top_Transaction = pd.DataFrame(clm)
+print(Top_Transaction.head())
 
-                with open(file_path, "r") as f:
-                    content = json.load(f)
 
-                    if content.get("data"):
-
-                        # 🔹 Districts
-                        if content["data"].get("districts"):
-                            for item in content["data"]["districts"]:
-                                name = item.get("entityName", "")
-                                count = item.get("metric", {}).get("count", 0)
-                                amount = item.get("metric", {}).get("amount", 0)
-
-                                data.append([
-                                    state,
-                                    int(year),
-                                    int(file.replace(".json", "")),
-                                    name,
-                                    count,
-                                    amount
-                                ])
-
-                        # 🔹 Pincodes
-                        if content["data"].get("pincodes"):
-                            for item in content["data"]["pincodes"]:
-                                name = item.get("entityName", "")
-                                count = item.get("metric", {}).get("count", 0)
-                                amount = item.get("metric", {}).get("amount", 0)
-
-                                data.append([
-                                    state,
-                                    int(year),
-                                    int(file.replace(".json", "")),
-                                    name,
-                                    count,
-                                    amount
-                                ])
-
-# 🔹 Convert to DataFrame
-df = pd.DataFrame(data, columns=[
-    "state", "year", "quarter",
-    "entity_name", "transaction_count", "transaction_amount"
-])
-
-# 🔹 Clean NaN values
-df = df.fillna(0)
-
-# 🔹 Insert into MySQL
-for _, row in df.iterrows():
-    cursor.execute("""
-        INSERT INTO top_transaction
-        (state, year, quarter, entity_name, transaction_count, transaction_amount)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (
-        str(row["state"]),
-        int(row["year"]),
-        int(row["quarter"]),
-        str(row["entity_name"]),
-        int(row["transaction_count"]),
-        float(row["transaction_amount"])
-    ))
-
-conn.commit()
-
-cursor.close()
-conn.close()
-
-print("✅ Top transaction data loaded successfully!")
+---

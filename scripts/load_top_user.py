@@ -1,94 +1,46 @@
-import json
+# 4. Top User
+
+python
 import pandas as pd
-import mysql.connector
+import json
 import os
 
-# 🔹 DB Connection
-conn = mysql.connector.connect(
-    host="127.0.0.1",
-    user="root",
-    password="H@rikrish03",
-    database="phonepe_db"
-)
+path = "pulse/data/top/user/country/india/state/"
+Top_state_list = os.listdir(path)
 
-cursor = conn.cursor()
+clm = {
+    'State': [],
+    'Year': [],
+    'Quarter': [],
+    'Pincode': [],
+    'Registered_users': []
+}
 
-# 🔹 Dataset Path
-path = "C:/Users/ELCOT/Desktop/PhonePe_Project/data/pulse-master/data/top/user/country/india/state/"
+for i in Top_state_list:
+    p_i = path + i + "/"
+    Top_yr = os.listdir(p_i)
 
-data = []
+    for j in Top_yr:
+        p_j = p_i + j + "/"
+        Top_yr_list = os.listdir(p_j)
 
-# 🔹 Loop through folders
-for state in os.listdir(path):
-    state_path = path + state + "/"
+        for k in Top_yr_list:
+            p_k = p_j + k
+            Data = open(p_k, 'r')
+            D = json.load(Data)
 
-    for year in os.listdir(state_path):
-        year_path = state_path + year + "/"
+            for z in D['data']['pincodes']:
+                name = z['name']
+                users = z['registeredUsers']
 
-        for file in os.listdir(year_path):
-            if file.endswith(".json"):
+                clm['Pincode'].append(name)
+                clm['Registered_users'].append(users)
+                clm['State'].append(i)
+                clm['Year'].append(j)
+                clm['Quarter'].append(int(k.strip('.json')))
 
-                file_path = year_path + file
+Top_User = pd.DataFrame(clm)
+print(Top_User.head())
 
-                with open(file_path, "r") as f:
-                    content = json.load(f)
 
-                    if content.get("data"):
-
-                        # 🔹 Districts
-                        if content["data"].get("districts"):
-                            for item in content["data"]["districts"]:
-                                name = item.get("entityName", "")
-                                users = item.get("metric", {}).get("registeredUsers", 0)
-
-                                data.append([
-                                    state,
-                                    int(year),
-                                    int(file.replace(".json", "")),
-                                    name,
-                                    users
-                                ])
-
-                        # 🔹 Pincodes
-                        if content["data"].get("pincodes"):
-                            for item in content["data"]["pincodes"]:
-                                name = item.get("entityName", "")
-                                users = item.get("metric", {}).get("registeredUsers", 0)
-
-                                data.append([
-                                    state,
-                                    int(year),
-                                    int(file.replace(".json", "")),
-                                    name,
-                                    users
-                                ])
-
-# 🔹 Convert to DataFrame
-df = pd.DataFrame(data, columns=[
-    "state", "year", "quarter",
-    "entity_name", "registered_users"
-])
-
-# 🔹 Clean NaN
-df = df.fillna(0)
-
-# 🔹 Insert into MySQL
-for _, row in df.iterrows():
-    cursor.execute("""
-        INSERT INTO top_user
-        (state, year, quarter, entity_name, registered_users)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (
-        str(row["state"]),
-        int(row["year"]),
-        int(row["quarter"]),
-        str(row["entity_name"]),
-        int(row["registered_users"])
-    ))
-
-conn.commit()
-
-cursor.close()
-conn.close()
-
-print("✅ Top user data loaded successfully!")
+---
